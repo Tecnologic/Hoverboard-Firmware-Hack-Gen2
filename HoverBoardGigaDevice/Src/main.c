@@ -281,11 +281,11 @@ int main (void)
   SysTick_Config(SystemCoreClock / 100);
 	
 	// Init watchdog
-	if (Watchdog_init() == ERROR)
-	{
-		// If an error accours with watchdog initialization do not start device
-		while(1);
-	}
+//	if (Watchdog_init() == ERROR)
+//	{
+//		// If an error accours with watchdog initialization do not start device
+//		while(1);
+//	}
 	
 	// Init Interrupts
 	Interrupt_init();
@@ -310,7 +310,7 @@ int main (void)
 	
 	// Device has 1,6 seconds to do all the initialization
 	// afterwards watchdog will be fired
-	fwdgt_counter_reload();
+	//fwdgt_counter_reload();
 
 	// Init usart steer/bluetooth
 	USART_Steer_COM_init();
@@ -324,23 +324,28 @@ int main (void)
   }
   buzzerFreq = 0;
 
-	// Wait until button is pressed
-	while (gpio_input_bit_get(BUTTON_PORT, BUTTON_PIN))
-	{
-		// Reload watchdog while button is pressed
-		fwdgt_counter_reload();
-	}
+//	// Wait until button is pressed
+//	while (gpio_input_bit_get(BUTTON_PORT, BUTTON_PIN))
+//	{
+//		// Reload watchdog while button is pressed
+//		fwdgt_counter_reload();
+//	}
 #endif
+	
+		/// FIXME
+		speed = 100;
+		steer = 0;
 
   while(1)
 	{
 #ifdef MASTER
-		steerCounter++;	
-		if ((steerCounter % 2) == 0)
-		{	
-			// Request steering data
-			SendSteerDevice();
-		}
+//		steerCounter++;	
+//		if ((steerCounter % 2) == 0)
+//		{	
+//			// Request steering data
+//			SendSteerDevice();
+//		}
+
 		
 		// Calculate expo rate for less steering with higher speeds
 		expo = MAP((float)ABS(speed), 0, 1000, 1, 0.5);
@@ -370,7 +375,8 @@ int main (void)
 		chargeStateLowActive = gpio_input_bit_get(CHARGE_STATE_PORT, CHARGE_STATE_PIN);
 		
 		// Enable is depending on charger is connected or not
-		enable = chargeStateLowActive;
+		//enable = chargeStateLowActive;
+		enable = SET;
 		
 		// Enable channel output
 		SetEnable(enable);
@@ -443,11 +449,11 @@ int main (void)
     }
 
 		// Shut device off when button is pressed
-		if (gpio_input_bit_get(BUTTON_PORT, BUTTON_PIN))
-		{
-      while (gpio_input_bit_get(BUTTON_PORT, BUTTON_PIN)) {}
-			ShutOff();
-    }
+//		if (gpio_input_bit_get(BUTTON_PORT, BUTTON_PIN))
+//		{
+//      while (gpio_input_bit_get(BUTTON_PORT, BUTTON_PIN)) {}
+//			ShutOff();
+//    }
 		
 		// Calculate inactivity timeout (Except, when charger is active -> keep device running)
     if (ABS(pwmMaster) > 50 || ABS(pwmSlave) > 50 || !chargeStateLowActive)
@@ -469,7 +475,7 @@ int main (void)
 		Delay(DELAY_IN_MAIN_LOOP);
 		
 		// Reload watchdog (watchdog fires after 1,6 seconds)
-		fwdgt_counter_reload();
+		//fwdgt_counter_reload();
   }
 }
 

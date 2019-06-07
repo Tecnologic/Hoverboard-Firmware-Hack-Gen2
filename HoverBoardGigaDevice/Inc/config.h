@@ -55,14 +55,14 @@
 #define INACTIVITY_TIMEOUT 	8        	// Minutes of not driving until poweroff (not very precise)
 
 // ################################################################################
-
-#define BAT_LOW_LVL1     35.0       // Gently beeps, show green battery symbol above this Level.
-#define BAT_LOW_LVL2     33.0       // Battery almost empty, show orange battery symbol above this Level. Charge now! 
-#define BAT_LOW_DEAD     31.0       // Undervoltage lockout, show red battery symbol above this Level.
+/// rescaled to non float
+#define BAT_LOW_LVL1     35000       // Gently beeps, show green battery symbol above this Level.
+#define BAT_LOW_LVL2     33000       // Battery almost empty, show orange battery symbol above this Level. Charge now!
+#define BAT_LOW_DEAD     30000       // Undervoltage lockout, show red battery symbol above this Level.
 // ONLY DEBUG-LEVEL!!!
-//#define BAT_LOW_LVL1     29.0
-//#define BAT_LOW_LVL2     28.0
-//#define BAT_LOW_DEAD     27.0
+//#define BAT_LOW_LVL1     29000
+//#define BAT_LOW_LVL2     28000
+//#define BAT_LOW_DEAD     27000
 
 // ################################################################################
 #endif

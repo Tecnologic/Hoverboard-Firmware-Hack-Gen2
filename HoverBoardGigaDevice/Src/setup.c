@@ -144,10 +144,10 @@ void GPIO_init(void)
 	gpio_output_options_set(LED_ORANGE_PORT, GPIO_OTYPE_PP, GPIO_OSPEED_10MHZ, LED_ORANGE);
 	
 	// Init UPPER/LOWER LED
-	gpio_mode_set(UPPER_LED_PORT , GPIO_MODE_OUTPUT, GPIO_PUPD_NONE,UPPER_LED_PIN);	
-	gpio_output_options_set(UPPER_LED_PORT, GPIO_OTYPE_PP, GPIO_OSPEED_10MHZ, UPPER_LED_PIN);
-	gpio_mode_set(LOWER_LED_PORT , GPIO_MODE_OUTPUT, GPIO_PUPD_NONE,LOWER_LED_PIN);	
-	gpio_output_options_set(LOWER_LED_PORT, GPIO_OTYPE_PP, GPIO_OSPEED_10MHZ, LOWER_LED_PIN);
+//	gpio_mode_set(UPPER_LED_PORT , GPIO_MODE_OUTPUT, GPIO_PUPD_NONE,UPPER_LED_PIN);
+//	gpio_output_options_set(UPPER_LED_PORT, GPIO_OTYPE_PP, GPIO_OSPEED_10MHZ, UPPER_LED_PIN);
+//	gpio_mode_set(LOWER_LED_PORT , GPIO_MODE_OUTPUT, GPIO_PUPD_NONE,LOWER_LED_PIN);
+//	gpio_output_options_set(LOWER_LED_PORT, GPIO_OTYPE_PP, GPIO_OSPEED_10MHZ, LOWER_LED_PIN);
 	
 	// Init mosfet output
 	gpio_mode_set(MOSFET_OUT_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, MOSFET_OUT_PIN);	
@@ -169,8 +169,8 @@ void GPIO_init(void)
 	// Init ADC pins
 	gpio_mode_set(VBATT_PORT, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, VBATT_PIN);
 	gpio_mode_set(CURRENT_DC_PORT, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, CURRENT_DC_PIN);
-	gpio_mode_set(GPIOA, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, GPIO_PIN_6);
-	gpio_mode_set(GPIOB, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, GPIO_PIN_0);
+	gpio_mode_set(ACC_PORT, GPIO_MODE_ANALOG, GPIO_PUPD_PULLUP, ACC_PIN);
+	gpio_mode_set(DEACC_PORT, GPIO_MODE_ANALOG, GPIO_PUPD_PULLUP, DEACC_PIN);
 	
 	// Init debug pin
 	gpio_mode_set(DEBUG_PORT , GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, DEBUG_PIN);	
@@ -240,9 +240,9 @@ void PWM_init(void)
 	
 	// Set up the basic parameter struct for the timer
 	timerBldc_paramter_struct.counterdirection 	= TIMER_COUNTER_UP;
-	timerBldc_paramter_struct.prescaler 				= 0;
+	timerBldc_paramter_struct.prescaler 			= 0;
 	timerBldc_paramter_struct.alignedmode 			= TIMER_COUNTER_CENTER_DOWN;
-	timerBldc_paramter_struct.period						= 72000000 / 2 / PWM_FREQ;
+	timerBldc_paramter_struct.period				= 72000000 / 2 / PWM_FREQ;
 	timerBldc_paramter_struct.clockdivision 		= TIMER_CKDIV_DIV1;
 	timerBldc_paramter_struct.repetitioncounter = 0;
 	timer_auto_reload_shadow_disable(TIMER_BLDC);
@@ -335,7 +335,7 @@ void ADC_init(void)
 	dma_init_struct_adc.memory_addr = (uint32_t)&adc_buffer;
 	dma_init_struct_adc.memory_inc = DMA_MEMORY_INCREASE_ENABLE;
 	dma_init_struct_adc.memory_width = DMA_MEMORY_WIDTH_16BIT;
-	dma_init_struct_adc.number = 2;
+	dma_init_struct_adc.number = 4;
 	dma_init_struct_adc.periph_addr = (uint32_t)&ADC_RDATA;
 	dma_init_struct_adc.periph_inc = DMA_PERIPH_INCREASE_DISABLE;
 	dma_init_struct_adc.periph_width = DMA_PERIPHERAL_WIDTH_16BIT;
@@ -358,6 +358,8 @@ void ADC_init(void)
 	adc_channel_length_config(ADC_REGULAR_CHANNEL, 2);
 	adc_regular_channel_config(0, VBATT_CHANNEL, ADC_SAMPLETIME_13POINT5);
 	adc_regular_channel_config(1, CURRENT_DC_CHANNEL, ADC_SAMPLETIME_13POINT5);
+	adc_regular_channel_config(2, ACC_CHANNEL, ADC_SAMPLETIME_13POINT5);
+	adc_regular_channel_config(3, DEACC_CHANNEL, ADC_SAMPLETIME_13POINT5);
 	adc_data_alignment_config(ADC_DATAALIGN_RIGHT);
 	
 	// Set trigger of ADC

@@ -9,6 +9,7 @@
 * Copyright (C) 2018 Jakob Broemauer
 * Copyright (C) 2018 Kai Liebich
 * Copyright (C) 2018 Christoph Lehnert
+* Copyright (C) 2019 Alexander Brand
 *
 * The program is based on the hoverboard project by Niklas Fauth. The 
 * structure was tried to be as similar as possible, so that everyone 
@@ -37,15 +38,19 @@
 const int16_t pwm_res = 72000000 / 2 / PWM_FREQ; // = 2000
 
 // Global variables for voltage and current
-float batteryVoltage = 40.0;
-float currentDC = 0.0;
-float realSpeed = 0.0;
+/// Why the hell are these floats, the damm thing has no fpu!
+//float batteryVoltage = 40.0;
+//float currentDC = 0.0;
+//float realSpeed = 0.0;
+int32_t batteryVoltage = 40000;
+int32_t currentDC = 0;
+int32_t realSpeed = 0;
 
 // Timeoutvariable set by timeout timer
 extern FlagStatus timedOut;
 
 // Variables to be set from the main routine
-int16_t bldc_inputFilterPwm = 0;
+int16_t bldc_Pwm = 0;
 FlagStatus bldc_enable = RESET;
 
 // ADC buffer to be filled by DMA
@@ -58,15 +63,16 @@ uint8_t hall_c;
 uint8_t hall;
 uint8_t pos;
 uint8_t lastPos;
-int16_t bldc_outputFilterPwm = 0;
 int32_t filter_reg;
 FlagStatus buzzerToggle = RESET;
 uint8_t buzzerFreq = 0;
 uint8_t buzzerPattern = 0;
 uint16_t buzzerTimer = 0;
 int16_t offsetcount = 0;
-int16_t offsetdc = 2000;
+int16_t offsetdc = 0;
+int32_t offsetdcsum = 0;
 uint32_t speedCounter = 0;
+int32_t input_filtered = 0;
 
 //----------------------------------------------------------------------------
 // Commutation table
@@ -141,8 +147,17 @@ void SetEnable(FlagStatus setEnable)
 //----------------------------------------------------------------------------
 void SetPWM(int16_t setPwm)
 {
-	bldc_inputFilterPwm = CLAMP(setPwm, -1000, 1000);
+	bldc_Pwm = CLAMP(setPwm, -1000, 1000);
 }
+
+//----------------------------------------------------------------------------
+// get setpoint -1000 to 1000
+//----------------------------------------------------------------------------
+int16_t GetInput(void)
+{
+	return input_filtered;
+}
+
 
 //----------------------------------------------------------------------------
 // Calculation-Routine for BLDC => calculates with 16kHz
@@ -152,82 +167,107 @@ void CalculateBLDC(void)
 	int y = 0;     // yellow = phase A
 	int b = 0;     // blue   = phase B
 	int g = 0;     // green  = phase C
-	
+
+	/// Bullshit detected. When does (u + y)/2 converge to u?
+	/// yes after about 5 cycles...
+	//	// Calibrate ADC offsets for the first 1000 cycles
+	//  if (offsetcount < 1000)
+	//	{
+	//    offsetcount++;
+	//    offsetdc = (adc_buffer.current_dc + offsetdc) / 2;
+	//    return;
+	//  }
 	// Calibrate ADC offsets for the first 1000 cycles
-  if (offsetcount < 1000)
-	{  
-    offsetcount++;
-    offsetdc = (adc_buffer.current_dc + offsetdc) / 2;
-    return;
-  }
-	
-	// Calculate battery voltage every 100 cycles
-  if (buzzerTimer % 100 == 0)
+	if (offsetcount < 1000)
 	{
-    batteryVoltage = batteryVoltage * 0.999 + ((float)adc_buffer.v_batt * ADC_BATTERY_VOLT) * 0.001;
-  }
-	
+		offsetcount++;
+		offsetdcsum += adc_buffer.current_dc;
+		return;
+	}
+	// calculate the real mean of the offset measurements
+	if(offsetdc == 0)
+	{
+		offsetdc = offsetdcsum/offsetcount;
+	}
+
+
+//	// Calculate battery voltage every 100 cycles
+//	if (buzzerTimer % 100 == 0)
+//	{
+//		batteryVoltage = batteryVoltage * 0.999 + ((float)adc_buffer.v_batt * ADC_BATTERY_VOLT) * 0.001;
+//	}
+	batteryVoltage = (batteryVoltage*99 + adc_buffer.v_batt * ADC_BATTERY_VOLT)/100;
+
 #ifdef MASTER
 	// Create square wave for buzzer
-  buzzerTimer++;
-  if (buzzerFreq != 0 && (buzzerTimer / 5000) % (buzzerPattern + 1) == 0)
+	buzzerTimer++;
+	if (buzzerFreq != 0 && (buzzerTimer / 5000) % (buzzerPattern + 1) == 0)
 	{
-    if (buzzerTimer % buzzerFreq == 0)
+		if (buzzerTimer % buzzerFreq == 0)
 		{
 			buzzerToggle = buzzerToggle == RESET ? SET : RESET; // toggle variable
-		  gpio_bit_write(BUZZER_PORT, BUZZER_PIN, buzzerToggle);
-    }
-  }
+			gpio_bit_write(BUZZER_PORT, BUZZER_PIN, buzzerToggle);
+		}
+	}
 	else
 	{
 		gpio_bit_write(BUZZER_PORT, BUZZER_PIN, RESET);
-  }
+	}
 #endif
-	
-	// Calculate current DC
-	currentDC = ABS((adc_buffer.current_dc - offsetdc) * MOTOR_AMP_CONV_DC_AMP);
 
-  // Disable PWM when current limit is reached (current chopping), enable is not set or timeout is reached
-	if (currentDC > DC_CUR_LIMIT /*|| bldc_enable == RESET || timedOut == SET*/)
+//	// Calculate current DC
+//	currentDC = ABS((adc_buffer.current_dc - offsetdc) * MOTOR_AMP_CONV_DC_AMP);
+	currentDC = (currentDC*9 + (adc_buffer.current_dc - offsetdc)*MOTOR_AMP_CONV_DC_AMP)/10;
+
+	// Disable PWM when current limit is reached (current chopping), enable is not set or timeout is reached
+	if (ABS(currentDC) > DC_CUR_LIMIT || bldc_enable == RESET || timedOut == SET)
 	{
 		timer_automatic_output_disable(TIMER_BLDC);		
-  }
+	}
 	else
 	{
 		timer_automatic_output_enable(TIMER_BLDC);
-  }
-	
-  // Read hall sensors
+	}
+
+	// Read hall sensors
 	hall_a = gpio_input_bit_get(HALL_A_PORT, HALL_A_PIN);
-  hall_b = gpio_input_bit_get(HALL_B_PORT, HALL_B_PIN);
+	hall_b = gpio_input_bit_get(HALL_B_PORT, HALL_B_PIN);
 	hall_c = gpio_input_bit_get(HALL_C_PORT, HALL_C_PIN);
-  
+
 	// Determine current position based on hall sensors
-  hall = hall_a * 1 + hall_b * 2 + hall_c * 4;
-  pos = hall_to_pos[hall];
-	
+	hall = hall_a * 1 + hall_b * 2 + hall_c * 4;
+	pos = hall_to_pos[hall];
+
 	// Calculate low-pass filter for pwm value
-	filter_reg = filter_reg - (filter_reg >> FILTER_SHIFT) + bldc_inputFilterPwm;
-	bldc_outputFilterPwm = filter_reg >> FILTER_SHIFT;
-	
-  // Update PWM channels based on position y(ellow), b(lue), g(reen)
-  blockPWM(bldc_outputFilterPwm, pos, &y, &b, &g);
-	
+	/// interesting implementation why not straight forward as with the other filters?
+//	filter_reg = filter_reg - (filter_reg >> FILTER_SHIFT) + bldc_inputFilterPwm;
+//	bldc_outputFilterPwm = filter_reg >> FILTER_SHIFT;
+	// calculate combined input, both adc inputs give 0-4095 --> -4095 to 4095 /4 --> -1023 to 1023
+	// clamp the input for a little deadzone at 100%.
+	int16_t combined_input = CLAMP((adc_buffer.acc - adc_buffer.deacc)/4, -1000, 1000);
+	// limit dynamics with lowpass with a cutoff at 500Hz
+	input_filtered = (input_filtered*31 + combined_input)/32;
+
+	// Update PWM channels based on position y(ellow), b(lue), g(reen)
+	blockPWM(bldc_Pwm, pos, &y, &b, &g);
+
 	// Set PWM output (pwm_res/2 is the mean value, setvalue has to be between 10 and pwm_res-10)
 	timer_channel_output_pulse_value_config(TIMER_BLDC, TIMER_BLDC_CHANNEL_G, CLAMP(g + pwm_res / 2, 10, pwm_res-10));
 	timer_channel_output_pulse_value_config(TIMER_BLDC, TIMER_BLDC_CHANNEL_B, CLAMP(b + pwm_res / 2, 10, pwm_res-10));
 	timer_channel_output_pulse_value_config(TIMER_BLDC, TIMER_BLDC_CHANNEL_Y, CLAMP(y + pwm_res / 2, 10, pwm_res-10));
-	
+
 	// Increments with 62.5us
 	if(speedCounter < 4000) // No speed after 250ms
 	{
 		speedCounter++;
 	}
-	
+
 	// Every time position reaches value 1, one round is performed (rising edge)
 	if (lastPos != 1 && pos == 1)
 	{
-		realSpeed = 1991.81f / (float)speedCounter; //[km/h]
+		/// same as always, float WTF! and one does not even loose resolution!!!
+		//realSpeed = 1991.81f / (float)speedCounter; //[km/h]
+		realSpeed = 1991810 / speedCounter; //[m/h]
 		speedCounter = 0;
 	}
 	else

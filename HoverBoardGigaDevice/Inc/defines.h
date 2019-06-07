@@ -42,10 +42,10 @@
 #define LED_RED GPIO_PIN_3
 #define LED_RED_PORT GPIOB
 
-#define UPPER_LED_PIN GPIO_PIN_1
-#define UPPER_LED_PORT GPIOA
-#define LOWER_LED_PIN GPIO_PIN_0
-#define LOWER_LED_PORT GPIOA
+//#define UPPER_LED_PIN GPIO_PIN_1
+//#define UPPER_LED_PORT GPIOA
+//#define LOWER_LED_PIN GPIO_PIN_0
+//#define LOWER_LED_PORT GPIOA
 
 // Mosfet output
 #define MOSFET_OUT_PIN GPIO_PIN_13
@@ -99,6 +99,12 @@
 #define CURRENT_DC_PIN	GPIO_PIN_6
 #define CURRENT_DC_PORT GPIOA
 #define CURRENT_DC_CHANNEL ADC_CHANNEL_6
+#define ACC_PIN GPIO_PIN_1
+#define ACC_PORT GPIOA
+#define ACC_CHANNEL ADC_CHANNEL_1
+#define DEACC_PIN GPIO_PIN_0
+#define DEACC_PORT GPIOA
+#define DEACC_CHANNEL ADC_CHANNEL_0
 
 // Self hold defines
 #define SELF_HOLD_PIN GPIO_PIN_2
@@ -130,11 +136,12 @@
 #define DEBUG_PORT GPIOB
 
 // ADC value conversion defines
-#define MOTOR_AMP_CONV_DC_AMP 0.201465201465  // 3,3V * 1/3 - 0,004Ohm * IL(ampere) = (ADC-Data/4095) *3,3V
-#define ADC_BATTERY_VOLT      0.024169921875 	// V_Batt to V_BattMeasure = factor 30: ( (ADC-Data/4095) *3,3V *30 )
+/// rescaled the floats to int with 1/1000
+#define MOTOR_AMP_CONV_DC_AMP 201//0.201465201465  // 3,3V * 1/3 - 0,004Ohm * IL(ampere) = (ADC-Data/4095) *3,3V
+#define ADC_BATTERY_VOLT      24//0.024169921875 	// V_Batt to V_BattMeasure = factor 30: ( (ADC-Data/4095) *3,3V *30 )
 
 // Useful math function defines
-#define ABS(a) (((a) < 0.0) ? -(a) : (a))
+#define ABS(a) (((a) < 0) ? -(a) : (a))
 #define CLAMP(x, low, high) (((x) > (high)) ? (high) : (((x) < (low)) ? (low) : (x)))
 #define MAX(x, high) (((x) > (high)) ? (high) : (x))
 #define MAP(x, xMin, xMax, yMin, yMax) ((x - xMin) * (yMax - yMin) / (xMax - xMin) + yMin)
@@ -142,8 +149,10 @@
 // ADC buffer struct
 typedef struct
 {
-  uint16_t v_batt;
+	uint16_t v_batt;
 	uint16_t current_dc;
+	uint16_t acc;
+	uint16_t deacc;
 } adc_buf_t;
 
 #endif
